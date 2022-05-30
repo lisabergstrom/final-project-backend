@@ -3,6 +3,8 @@ import cors from "cors";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+import request from "request";
+import dotenv from "dotenv";
 
 const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/project-mongo";
 mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -10,6 +12,8 @@ mongoose.Promise = Promise;
 
 const port = process.env.PORT || 8080;
 const app = express();
+
+dotenv.config();
 
 app.use(cors());
 app.use(express.json());
@@ -133,8 +137,17 @@ const authenticateUser = async (req, res, next) => {
 
 app.get("/Main", authenticateUser);
 
-app.get("/", (req, res) => {
-  res.send("This is our backend");
+app.get("/home", (req, res) => {
+  let city = req.query.city;
+  var request = require("request");
+  request(process.env.WEATHER_API_KEY, function (error, response, body) {
+    let data = JSON.parse(body);
+    if (response.statusCode === 200) {
+      res.send(
+        `The weather in ${city} is ${data.list[0].weather[0].description}`
+      );
+    }
+  });
 });
 
 app.listen(port, () => {
