@@ -215,7 +215,63 @@ app.post("/notes", async (req, res) => {
     res.status(200).json(newPersonalNotes);
   } catch (err) {
     res.status(400).json({
-      message: "Could not save your personal notes",
+      message: "Could not save your list",
+      error: err.errors,
+      success: false,
+    });
+  }
+});
+
+app.use((req, res, next) => {
+  if (mongoose.connection.readyState === 1) {
+    next();
+  } else {
+    res.status(503).json({
+      error: "Service unavailable",
+    });
+  }
+});
+
+// PACKINGLIST endpoint
+
+const packingListSchema = new mongoose.Schema({
+  message: {
+    type: String,
+    required: true,
+    minlength: 5,
+    maxlength: 140,
+    trim: true,
+  },
+  createAt: {
+    type: Date,
+    default: () => new Date(),
+  },
+});
+
+const packingList = mongoose.model("packingList", packingListSchema);
+
+app.get("/packinglist", async (req, res) => {
+  try {
+    const list = await packingList.find().sort({ createdAt: "desc" });
+    res.status(200).json(list);
+  } catch (err) {
+    res.status(400).json({
+      message: "Could not get the list",
+      error: err.errors,
+      success: false,
+    });
+  }
+});
+
+app.post("/packinglist", async (req, res) => {
+  const { message } = req.body;
+
+  try {
+    const newPackingList = await new packingList({ message }).save();
+    res.status(200).json(newPackingList);
+  } catch (err) {
+    res.status(400).json({
+      message: "Could not save your packing list",
       error: err.errors,
       success: false,
     });
