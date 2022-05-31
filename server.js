@@ -139,7 +139,7 @@ app.get("/Main", authenticateUser);
 
 app.get("/home", (req, res) => {
   let city = req.query.city;
-  var request = require("request");
+  const request = require("request");
   request(process.env.WEATHER_API_KEY, function (error, response, body) {
     let data = JSON.parse(body);
     if (response.statusCode === 200) {
@@ -148,6 +148,88 @@ app.get("/home", (req, res) => {
       );
     }
   });
+});
+
+// MAP endpoint
+app.get("/map", (req, res) => {
+  const mapApi =
+    "https://cartes.io/api/maps/74f11ac6-0ec6-4c21-bd14-7682ace99846";
+  const request = require("request");
+  request(mapApi, function (error, response, body) {
+    let json = JSON.parse(body);
+    if (response.statusCode === 200) {
+      res.send(json);
+    }
+  });
+});
+
+// MARKERS endpoint
+app.get("/markers", (req, res) => {
+  const mapApi =
+    "https://cartes.io/api/maps/74f11ac6-0ec6-4c21-bd14-7682ace99846/markers";
+  const request = require("request");
+  request(mapApi, function (error, response, body) {
+    let json = JSON.parse(body);
+    if (response.statusCode === 200) {
+      res.send(json);
+    }
+  });
+});
+
+// NOTES endpoint
+
+const personalNotesSchema = new mongoose.Schema({
+  message: {
+    type: String,
+    required: true,
+    minlength: 5,
+    maxlength: 140,
+    trim: true,
+  },
+  createAt: {
+    type: Date,
+    default: () => new Date(),
+  },
+});
+
+const personalNotes = mongoose.model("personalNotes", personalNotesSchema);
+
+app.get("/notes", async (req, res) => {
+  try {
+    const notes = await personalNotes.find().sort({ createdAt: "desc" });
+    res.status(200).json(notes);
+  } catch (err) {
+    res.status(400).json({
+      message: "Could not get any notes",
+      error: err.errors,
+      success: false,
+    });
+  }
+});
+
+app.post("/notes", async (req, res) => {
+  const { message } = req.body;
+
+  try {
+    const newPersonalNotes = await new personalNotes({ message }).save();
+    res.status(200).json(newPersonalNotes);
+  } catch (err) {
+    res.status(400).json({
+      message: "Could not save your personal notes",
+      error: err.errors,
+      success: false,
+    });
+  }
+});
+
+app.use((req, res, next) => {
+  if (mongoose.connection.readyState === 1) {
+    next();
+  } else {
+    res.status(503).json({
+      error: "Service unavailable",
+    });
+  }
 });
 
 app.listen(port, () => {
