@@ -5,6 +5,7 @@ import crypto from "crypto";
 import bcrypt from "bcrypt";
 import request from "request";
 import dotenv from "dotenv";
+import { stringify } from "querystring";
 
 const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/project-mongo";
 mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -101,12 +102,13 @@ app.post("/login", async (req, res) => {
       });
     } else {
       res.status(400).json({
-        response: "Username and password don't match",
+        response: "Username or password is incorrect",
         success: false,
       });
     }
   } catch (error) {
     res.status(400).json({
+      message: "Invalid request",
       response: error,
       success: false,
     });
@@ -178,25 +180,44 @@ app.get("/markers", (req, res) => {
 
 // NOTES endpoint
 
-const personalNotesSchema = new mongoose.Schema({
+const PersonalNotesSchema = new mongoose.Schema({
+  heading: {
+    type: String,
+    required: true,
+    maxlength: 50,
+    trim: true,
+  },
   message: {
     type: String,
     required: true,
     minlength: 5,
-    maxlength: 140,
     trim: true,
+  },
+  tags: {
+    type: String,
+    required: true,
+    enum: ["food", "travel", "city"],
   },
   createAt: {
     type: Date,
     default: () => new Date(),
   },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
 });
 
-const personalNotes = mongoose.model("personalNotes", personalNotesSchema);
+const PersonalNotes = mongoose.model("PersonalNotes", PersonalNotesSchema);
+//***GET METHOD NOTES ****/
+app.get("/notes/:userId", authenticateUser);
+app.get("/notes/:userId", async (req, res) => {
+  const { userId } = req.params;
 
-app.get("/notes", async (req, res) => {
   try {
-    const notes = await personalNotes.find().sort({ createdAt: "desc" });
+    const notes = await PersonalNotes.find({ user: userId }).sort({
+      createdAt: "desc",
+    });
     res.status(200).json(notes);
   } catch (err) {
     res.status(400).json({
@@ -206,19 +227,58 @@ app.get("/notes", async (req, res) => {
     });
   }
 });
-
+/**** POST METHOD NOTES ****/
+app.post("/notes", authenticateUser);
 app.post("/notes", async (req, res) => {
-  const { message } = req.body;
+  const { heading, message, tags } = req.body;
 
   try {
-    const newPersonalNotes = await new personalNotes({ message }).save();
-    res.status(200).json(newPersonalNotes);
+    const newPersonalNotes = await new PersonalNotes({
+      heading,
+      message,
+      tags,
+      user: req.user,
+    }).save();
+    res.status(200).json({ response: newPersonalNotes, success: true });
   } catch (err) {
     res.status(400).json({
-      message: "Could not save your list",
+      message: "Invalid request",
       error: err.errors,
       success: false,
     });
+  }
+});
+
+/**** DELETE METHOD NOTES ******/
+app.delete("/notes/:notesId", authenticateUser);
+app.delete("/notes/:notesId", async (req, res) => {
+  const { notesId } = req.params;
+
+  try {
+    const deleteNotes = await PersonalNotes.findByIdAndDelete({ _id: notesId });
+    if (deleteNotes) {
+      res.status(200).json({ response: deleteNotes, success: true });
+    } else {
+      res.status(400).json({ message: "Note not found", success: false });
+    }
+  } catch (error) {
+    res.status(400).json({ message: "Could not delete note", success: false });
+  }
+});
+
+app.patch("/notes/:notesId/completed", async (req, res) => {
+  const { notesId } = req.params;
+  const { isCompleted } = req.body;
+
+  try {
+    const updateIsCompleted = await PersonalNotes(
+      { _id: notesId },
+      { isCompleted },
+      { new: true }
+    );
+    res.status(200).json({ response: updateIsCompleted, success: true });
+  } catch (error) {
+    res.status(400).json({ response: error, success: false });
   }
 });
 
@@ -234,25 +294,40 @@ app.use((req, res, next) => {
 
 // PACKINGLIST endpoint
 
-const packingListSchema = new mongoose.Schema({
-  message: {
+const PackingListSchema = new mongoose.Schema({
+  heading: {
     type: String,
     required: true,
     minlength: 5,
-    maxlength: 140,
+    maxlength: 50,
+    trim: true,
+  },
+  message: {
+    type: String,
+    required: true,
     trim: true,
   },
   createAt: {
     type: Date,
     default: () => new Date(),
   },
+  isCompleted: {
+    type: Boolean,
+    default: false,
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
 });
 
-const packingList = mongoose.model("packingList", packingListSchema);
+const PackingList = mongoose.model("PackingList", PackingListSchema);
 
-app.get("/packinglist", async (req, res) => {
+app.get("/packinglist/:userId", authenticateUser);
+app.get("/packinglist/:userId", async (req, res) => {
+  const { userId } = req.params;
   try {
-    const list = await packingList.find().sort({ createdAt: "desc" });
+    const list = await PackingList.find({ userId }).sort({ createdAt: "desc" });
     res.status(200).json(list);
   } catch (err) {
     res.status(400).json({
@@ -263,11 +338,17 @@ app.get("/packinglist", async (req, res) => {
   }
 });
 
+app.post("/packinglist", authenticateUser);
 app.post("/packinglist", async (req, res) => {
-  const { message } = req.body;
+  const { heading, message, isCompleted } = req.body;
 
   try {
-    const newPackingList = await new packingList({ message }).save();
+    const newPackingList = await new PackingList({
+      heading,
+      message,
+      user: req.user,
+      isCompleted,
+    }).save();
     res.status(200).json(newPackingList);
   } catch (err) {
     res.status(400).json({
@@ -275,6 +356,66 @@ app.post("/packinglist", async (req, res) => {
       error: err.errors,
       success: false,
     });
+  }
+});
+
+app.delete("/packinglist/:userId", authenticateUser);
+app.delete("/packinglist/:userId", async (req, res) => {
+  const { listId } = req.params;
+  try {
+    const deleteListItems = await PackingList.findByIdAndDelete({
+      _id: listId,
+    });
+    if (deleteListItems) {
+      res.status(200).json({ response: deleteListItems, success: true });
+    } else {
+      res.status(400).json({ message: "List items not found", success: false });
+    }
+  } catch (err) {
+    res.status(400).json({
+      message: "Could not get the list",
+      error: err.errors,
+      success: false,
+    });
+  }
+});
+app.patch("/packinglist/:listId", authenticateUser);
+app.patch("/packinglist/:listId/update", async (req, res) => {
+  const { listId } = req.params;
+  const { heading, message } = req.body;
+
+  try {
+    const updateList = await PackingList.findByIdAndUpdate(
+      { _id: listId },
+      {
+        heading,
+        message,
+      },
+      { new: true }
+    );
+    if (updateList) {
+      res.status(200).json({ response: updateList, success: true });
+    } else {
+      res.status(400).json({ message: "Items not found", success: false });
+    }
+  } catch (error) {
+    res.status(400).json({ message: "Could not update list", success: false });
+  }
+});
+
+app.patch("packinglist/:listId/completed", async (req, res) => {
+  const { listId } = req.params;
+  const { isCompleted } = req.body;
+
+  try {
+    const updateIsCompleted = await PackingList.findOneAndUpdate(
+      { _id: listId },
+      { isCompleted },
+      { new: true }
+    );
+    res.status(200).json({ response: updateIsCompleted, success: true });
+  } catch (error) {
+    res.status(400).json({ response: error, success: false });
   }
 });
 
