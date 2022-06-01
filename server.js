@@ -120,8 +120,9 @@ app.post("/login", async (req, res) => {
 const authenticateUser = async (req, res, next) => {
   const accessToken = req.header("Authorization");
   try {
-    const user = await User.findOne({ accessToken: accessToken });
+    const user = await User.findOne({ accessToken });
     if (user) {
+      req.user = user;
       next();
     } else {
       res.status(401).json({
@@ -137,7 +138,7 @@ const authenticateUser = async (req, res, next) => {
   }
 };
 
-app.get("/Main", authenticateUser);
+// app.get("/Main", authenticateUser);
 
 app.get("/home", (req, res) => {
   let city = req.query.city;
@@ -145,9 +146,7 @@ app.get("/home", (req, res) => {
   request(process.env.WEATHER_API_KEY, function (error, response, body) {
     let data = JSON.parse(body);
     if (response.statusCode === 200) {
-      res.send(
-        `The weather in ${city} is ${data.list[0].weather[0].description}`
-      );
+      res.send(`The weather in ${city} is ${data.weather[0].description}`);
     }
   });
 });
@@ -416,16 +415,6 @@ app.patch("packinglist/:listId/completed", async (req, res) => {
     res.status(200).json({ response: updateIsCompleted, success: true });
   } catch (error) {
     res.status(400).json({ response: error, success: false });
-  }
-});
-
-app.use((req, res, next) => {
-  if (mongoose.connection.readyState === 1) {
-    next();
-  } else {
-    res.status(503).json({
-      error: "Service unavailable",
-    });
   }
 });
 
