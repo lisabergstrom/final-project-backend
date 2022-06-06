@@ -140,6 +140,8 @@ const authenticateUser = async (req, res, next) => {
 
 // app.get("/Main", authenticateUser);
 
+// app.get("/home", authenticateUser);
+
 app.get("/home", (req, res) => {
   let city = req.query.city;
   const request = require("request");
@@ -147,32 +149,6 @@ app.get("/home", (req, res) => {
     let data = JSON.parse(body);
     if (response.statusCode === 200) {
       res.send(`The weather in ${city} is ${data.weather[0].description}`);
-    }
-  });
-});
-
-// MAP endpoint
-app.get("/map", (req, res) => {
-  const mapApi =
-    "https://cartes.io/api/maps/74f11ac6-0ec6-4c21-bd14-7682ace99846";
-  const request = require("request");
-  request(mapApi, function (error, response, body) {
-    let json = JSON.parse(body);
-    if (response.statusCode === 200) {
-      res.send(json);
-    }
-  });
-});
-
-// MARKERS endpoint
-app.get("/markers", (req, res) => {
-  const mapApi =
-    "https://cartes.io/api/maps/74f11ac6-0ec6-4c21-bd14-7682ace99846/markers";
-  const request = require("request");
-  request(mapApi, function (error, response, body) {
-    let json = JSON.parse(body);
-    if (response.statusCode === 200) {
-      res.send(json);
     }
   });
 });
