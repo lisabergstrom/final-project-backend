@@ -5,7 +5,7 @@ import crypto from "crypto";
 import bcrypt from "bcrypt";
 import request from "request";
 import dotenv from "dotenv";
-import { stringify } from "querystring";
+// import { stringify } from "querystring";
 
 const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/project-mongo";
 mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -145,12 +145,25 @@ const authenticateUser = async (req, res, next) => {
 app.get("/home", (req, res) => {
   let city = req.query.city;
   const request = require("request");
-  request(process.env.WEATHER_API_KEY, function (error, response, body) {
+  const options = {
+    url: `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.WEATHER_API_KEY}`,
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  };
+  const key = "d15821373b187c1118bfa98669724250";
+  const requesturl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${key}`;
+  request(requesturl, function (error, response, body) {
     let data = JSON.parse(body);
+    console.log(response);
     if (response.statusCode === 200) {
       res.send(`The weather in ${city} is ${data.weather[0].description}`);
+    } else {
+      res.send(data.message);
     }
   });
+  console.log(process.env.WEATHER_API_KEY);
 });
 
 // NOTES endpoint
