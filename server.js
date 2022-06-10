@@ -4,13 +4,8 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import request from "request";
-<<<<<<< HEAD
 import "dotenv/config";
 import { stringify } from "querystring";
-=======
-import dotenv from "dotenv";
-// import { stringify } from "querystring";
->>>>>>> 22fbaa6be89a6886b29f6caeceacfc2996a763b1
 
 const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/project-mongo";
 mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -141,7 +136,6 @@ const authenticateUser = async (req, res, next) => {
   }
 };
 
-<<<<<<< HEAD
 //app.get("/home", authenticateUser);
 app.get("/home", (req, res) => {
   let city = req.query.city
@@ -157,35 +151,6 @@ app.get("/home", (req, res) => {
   })
 });
 
-=======
-// app.get("/Main", authenticateUser);
-
-// app.get("/home", authenticateUser);
-
-app.get("/home", (req, res) => {
-  let city = req.query.city;
-  const request = require("request");
-  const options = {
-    url: `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.WEATHER_API_KEY}`,
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-    },
-  };
-  const key = "d15821373b187c1118bfa98669724250";
-  const requesturl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${key}`;
-  request(requesturl, function (error, response, body) {
-    let data = JSON.parse(body);
-    console.log(response);
-    if (response.statusCode === 200) {
-      res.send(`The weather in ${city} is ${data.weather[0].description}`);
-    } else {
-      res.send(data.message);
-    }
-  });
-  console.log(process.env.WEATHER_API_KEY);
-});
->>>>>>> 22fbaa6be89a6886b29f6caeceacfc2996a763b1
 
 // NOTES endpoint
 const PersonalNotesSchema = new mongoose.Schema({
