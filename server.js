@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import request from "request";
-import dotenv from "dotenv";
+import "dotenv/config";
 import { stringify } from "querystring";
 
 const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/project-mongo";
@@ -13,8 +13,6 @@ mongoose.Promise = Promise;
 
 const port = process.env.PORT || 8080;
 const app = express();
-
-dotenv.config();
 
 app.use(cors());
 app.use(express.json());
@@ -40,11 +38,11 @@ const UserSchema = new mongoose.Schema({
 const User = mongoose.model("User", UserSchema);
 
 // REGISTER ENDPOINT - for new users
-
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
   try {
+
     let checkUsername = await User.findOne({
       username: username.toLowerCase(),
     }).exec();
@@ -138,47 +136,23 @@ const authenticateUser = async (req, res, next) => {
   }
 };
 
-// app.get("/Main", authenticateUser);
-
+//app.get("/home", authenticateUser);
 app.get("/home", (req, res) => {
-  let city = req.query.city;
-  const request = require("request");
-  request(process.env.WEATHER_API_KEY, function (error, response, body) {
-    let data = JSON.parse(body);
+  let city = req.query.city
+
+  const requesturl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.WEATHER_API_KEY}`
+  request(requesturl, function(error, response, body) {
+    let data = JSON.parse(body)
     if (response.statusCode === 200) {
-      res.send(`The weather in ${city} is ${data.weather[0].description}`);
+      res.send(`The weather in ${city} is ${data.weather[0].description}`)
+    } else {
+      res.send(data.message)
     }
-  });
+  })
 });
 
-// MAP endpoint
-app.get("/map", (req, res) => {
-  const mapApi =
-    "https://cartes.io/api/maps/74f11ac6-0ec6-4c21-bd14-7682ace99846";
-  const request = require("request");
-  request(mapApi, function (error, response, body) {
-    let json = JSON.parse(body);
-    if (response.statusCode === 200) {
-      res.send(json);
-    }
-  });
-});
-
-// MARKERS endpoint
-app.get("/markers", (req, res) => {
-  const mapApi =
-    "https://cartes.io/api/maps/74f11ac6-0ec6-4c21-bd14-7682ace99846/markers";
-  const request = require("request");
-  request(mapApi, function (error, response, body) {
-    let json = JSON.parse(body);
-    if (response.statusCode === 200) {
-      res.send(json);
-    }
-  });
-});
 
 // NOTES endpoint
-
 const PersonalNotesSchema = new mongoose.Schema({
   heading: {
     type: String,
@@ -209,10 +183,10 @@ const PersonalNotesSchema = new mongoose.Schema({
 
 const PersonalNotes = mongoose.model("PersonalNotes", PersonalNotesSchema);
 //***GET METHOD NOTES ****/
-app.get("/notes/:userId", authenticateUser);
-app.get("/notes/:userId", async (req, res) => {
-  const { userId } = req.params;
-
+app.get("/notes", authenticateUser);
+app.get("/notes", async (req, res) => {
+  let userId = req.user._id;
+  
   try {
     const notes = await PersonalNotes.find({ user: userId }).sort({
       createdAt: "desc",
@@ -226,11 +200,11 @@ app.get("/notes/:userId", async (req, res) => {
     });
   }
 });
+
 /**** POST METHOD NOTES ****/
 app.post("/notes", authenticateUser);
 app.post("/notes", async (req, res) => {
   const { heading, message, tags } = req.body;
-
   try {
     const newPersonalNotes = await new PersonalNotes({
       heading,
@@ -251,10 +225,14 @@ app.post("/notes", async (req, res) => {
 /**** DELETE METHOD NOTES ******/
 app.delete("/notes/:notesId", authenticateUser);
 app.delete("/notes/:notesId", async (req, res) => {
-  const { notesId } = req.params;
+  //notesId is the note we want to delete
+  const { notesId } = req.params
+  //This is for getting the users id so the user only can delete its own notes
+  let userId = req.user._id;
 
   try {
-    const deleteNotes = await PersonalNotes.findByIdAndDelete({ _id: notesId });
+    const deleteNotes = await PersonalNotes.findOneAndDelete({user: userId, _id: notesId})
+    
     if (deleteNotes) {
       res.status(200).json({ response: deleteNotes, success: true });
     } else {
@@ -265,14 +243,19 @@ app.delete("/notes/:notesId", async (req, res) => {
   }
 });
 
+//WHY DO WE WANT TO BOCK OFF COMPLETED IN NOTES? CHANGE TO PACKINGLIST?
+app.patch("/notes/:notesId/completed", authenticateUser)
 app.patch("/notes/:notesId/completed", async (req, res) => {
+  //notesId is the not we want to check off
   const { notesId } = req.params;
-  const { isCompleted } = req.body;
+  // isCompleted is on each note
+  const completed = req.user.isCompleted
+  // const { isCompleted } = req.body;
 
   try {
     const updateIsCompleted = await PersonalNotes(
       { _id: notesId },
-      { isCompleted },
+      { completed },
       { new: true }
     );
     res.status(200).json({ response: updateIsCompleted, success: true });
@@ -322,11 +305,13 @@ const PackingListSchema = new mongoose.Schema({
 
 const PackingList = mongoose.model("PackingList", PackingListSchema);
 
-app.get("/packinglist/:userId", authenticateUser);
-app.get("/packinglist/:userId", async (req, res) => {
-  const { userId } = req.params;
+app.get("/packinglist", authenticateUser);
+app.get("/packinglist", async (req, res) => {
+
+  let userId = req.user._id;
+ 
   try {
-    const list = await PackingList.find({ userId }).sort({ createdAt: "desc" });
+    const list = await PackingList.find({user: userId  }).sort({ createdAt: "desc" });
     res.status(200).json(list);
   } catch (err) {
     res.status(400).json({
@@ -358,12 +343,18 @@ app.post("/packinglist", async (req, res) => {
   }
 });
 
-app.delete("/packinglist/:userId", authenticateUser);
-app.delete("/packinglist/:userId", async (req, res) => {
-  const { listId } = req.params;
+//Need to check that the user the note that's being deleted is owed by the one deleting
+app.delete("/packinglist/:notesId", authenticateUser);
+app.delete("/packinglist/:notesId", async (req, res) => {
+
+  //notesId is the note we want to delete
+  const { notesId } = req.params
+  //This is for getting the users id so the user only can delete its own notes
+  let userId = req.user._id;
+  
   try {
-    const deleteListItems = await PackingList.findByIdAndDelete({
-      _id: listId,
+    const deleteListItems = await PackingList.findOneAndDelete({
+      user: userId, _id: notesId
     });
     if (deleteListItems) {
       res.status(200).json({ response: deleteListItems, success: true });
@@ -378,14 +369,18 @@ app.delete("/packinglist/:userId", async (req, res) => {
     });
   }
 });
+
 app.patch("/packinglist/:listId", authenticateUser);
 app.patch("/packinglist/:listId/update", async (req, res) => {
   const { listId } = req.params;
+   // isCompleted is on each note
+  let completed = req.user.isCompleted
+  let userItem = req.user._id
   const { heading, message } = req.body;
 
   try {
     const updateList = await PackingList.findByIdAndUpdate(
-      { _id: listId },
+      { userItem: listId },
       {
         heading,
         message,
