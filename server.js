@@ -137,19 +137,19 @@ const authenticateUser = async (req, res, next) => {
 };
 
 //app.get("/home", authenticateUser);
-app.get("/home", (req, res) => {
-  let city = req.query.city
+// app.get("/home", (req, res) => {
+//   let city = req.query.city
 
-  const requesturl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.WEATHER_API_KEY}`
-  request(requesturl, function(error, response, body) {
-    let data = JSON.parse(body)
-    if (response.statusCode === 200) {
-      res.send(`The weather in ${city} is ${data.weather[0].description}`)
-    } else {
-      res.send(data.message)
-    }
-  })
-});
+//   const requesturl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.WEATHER_API_KEY}`
+//   request(requesturl, function(error, response, body) {
+//     let data = JSON.parse(body)
+//     if (response.statusCode === 200) {
+//       res.send(`The weather in ${city} is ${data.weather[0].description}`)
+//     } else {
+//       res.send(data.message)
+//     }
+//   })
+// });
 
 
 // NOTES endpoint
@@ -169,7 +169,7 @@ const PersonalNotesSchema = new mongoose.Schema({
   tags: {
     type: String,
     required: true,
-    enum: ["food", "travel", "city"],
+    enum: ["accommodation","activities", "city","food", "memories","sightseeing","travel"],
   },
   createAt: {
     type: Date,
@@ -225,6 +225,7 @@ app.post("/notes", async (req, res) => {
 /**** DELETE METHOD NOTES ******/
 app.delete("/notes/:notesId", authenticateUser);
 app.delete("/notes/:notesId", async (req, res) => {
+
   //notesId is the note we want to delete
   const { notesId } = req.params
   //This is for getting the users id so the user only can delete its own notes
@@ -244,21 +245,25 @@ app.delete("/notes/:notesId", async (req, res) => {
 });
 
 //WHY DO WE WANT TO BOCK OFF COMPLETED IN NOTES? CHANGE TO PACKINGLIST?
-app.patch("/notes/:notesId/completed", authenticateUser)
-app.patch("/notes/:notesId/completed", async (req, res) => {
+app.patch("/notes/:notesId", authenticateUser)
+app.patch("/notes/:notesId/update", async (req, res) => {
   //notesId is the not we want to check off
   const { notesId } = req.params;
   // isCompleted is on each note
-  const completed = req.user.isCompleted
+  //const completed = req.user.isCompleted
   // const { isCompleted } = req.body;
 
   try {
-    const updateIsCompleted = await PersonalNotes(
+    const updateNote = await PersonalNotes.findByIdAndUpdate(
       { _id: notesId },
-      { completed },
+      req.body,
       { new: true }
-    );
-    res.status(200).json({ response: updateIsCompleted, success: true });
+    )
+    if(updateNote) {
+      res.status(200).json({ response: updateIsCompleted, success: true });
+    } else {
+      res.status(200).json({message: "Note not found", success: false})
+    }
   } catch (error) {
     res.status(400).json({ response: error, success: false });
   }
@@ -307,7 +312,7 @@ const PackingList = mongoose.model("PackingList", PackingListSchema);
 
 app.get("/packinglist", authenticateUser);
 app.get("/packinglist", async (req, res) => {
-
+ 
   let userId = req.user._id;
  
   try {
@@ -397,10 +402,12 @@ app.patch("/packinglist/:listId/update", async (req, res) => {
   }
 });
 
-app.patch("packinglist/:listId/completed", async (req, res) => {
+app.patch("/packinglist/:listId/completed", authenticateUser);
+app.patch("/packinglist/:listId/completed", async (req, res) => {
+  console.log(req.body)
   const { listId } = req.params;
   const { isCompleted } = req.body;
-
+  console.log(isCompleted)
   try {
     const updateIsCompleted = await PackingList.findOneAndUpdate(
       { _id: listId },
