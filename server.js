@@ -7,7 +7,7 @@ import request from "request";
 import "dotenv/config";
 import { stringify } from "querystring";
 
-const mongoUrl = process.env.MONGO_URL || "https://backendtravel.herokuapp.com";
+const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/project-mongo";
 mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
 mongoose.Promise = Promise;
 
