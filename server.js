@@ -169,7 +169,7 @@ const PersonalNotesSchema = new mongoose.Schema({
   tags: {
     type: String,
     required: true,
-    enum: ["accommodation","activities", "city","food", "memories","sightseeing","travel"],
+    enum: ["accommodation","activities", "city","food n drinks", "memories","sightseeing","travel"],
   },
   createAt: {
     type: Date,
@@ -244,15 +244,11 @@ app.delete("/notes/:notesId", async (req, res) => {
   }
 });
 
-//WHY DO WE WANT TO BOCK OFF COMPLETED IN NOTES? CHANGE TO PACKINGLIST?
 app.patch("/notes/:notesId", authenticateUser)
 app.patch("/notes/:notesId/update", async (req, res) => {
   //notesId is the not we want to check off
   const { notesId } = req.params;
-  // isCompleted is on each note
-  //const completed = req.user.isCompleted
-  // const { isCompleted } = req.body;
-
+  
   try {
     const updateNote = await PersonalNotes.findByIdAndUpdate(
       { _id: notesId },
@@ -285,7 +281,7 @@ const PackingListSchema = new mongoose.Schema({
   heading: {
     type: String,
     required: true,
-    minlength: 5,
+    minlength: 2,
     maxlength: 50,
     trim: true,
   },
@@ -329,18 +325,18 @@ app.get("/packinglist", async (req, res) => {
 
 app.post("/packinglist", authenticateUser);
 app.post("/packinglist", async (req, res) => {
-  const { heading, message, isCompleted } = req.body;
-
+  const { heading, message } = req.body;
+ 
   try {
     const newPackingList = await new PackingList({
       heading,
       message,
-      user: req.user,
-      isCompleted,
+      user: req.user
     }).save();
     res.status(200).json(newPackingList);
   } catch (err) {
     res.status(400).json({
+      
       message: "Could not save your packing list",
       error: err.errors,
       success: false,
@@ -404,10 +400,8 @@ app.patch("/packinglist/:listId/update", async (req, res) => {
 
 app.patch("/packinglist/:listId/completed", authenticateUser);
 app.patch("/packinglist/:listId/completed", async (req, res) => {
-  console.log(req.body)
   const { listId } = req.params;
   const { isCompleted } = req.body;
-  console.log(isCompleted)
   try {
     const updateIsCompleted = await PackingList.findOneAndUpdate(
       { _id: listId },
