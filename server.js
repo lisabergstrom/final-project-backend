@@ -169,7 +169,7 @@ const PersonalNotesSchema = new mongoose.Schema({
   tags: {
     type: String,
     required: true,
-    enum: ["accommodation","activities", "city","food n drinks", "memories","sightseeing","travel"],
+    enum: ["accommodation","activities", "city","foodndrinks", "memories","sightseeing","travel"],
   },
   createAt: {
     type: Date,
