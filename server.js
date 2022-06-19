@@ -3,9 +3,8 @@ import cors from "cors";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
-import request from "request";
 import "dotenv/config";
-import { stringify } from "querystring";
+
 
 const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/project-mongo";
 mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -17,8 +16,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Using a userSchema in order to implement validation for the password before it is hashed
+app.use((req, res, next) => {
+  if (mongoose.connection.readyState === 1) {
+    next();
+  } else {
+    res.status(503).json({
+      error: "Service unavailable",
+    });
+  }
+});
 
+/********** USER SCHEMA *******************/
 const UserSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -37,8 +45,9 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", UserSchema);
 
-// REGISTER ENDPOINT - for new users
+/************ REGISTER ENDPOINT ******************/
 app.post("/register", async (req, res) => {
+
   const { username, password } = req.body;
 
   try {
@@ -81,9 +90,9 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// LOGIN ENDPOINT - for already existing users
-
+/************ LOGIN ENDPOINT ******************/
 app.post("/login", async (req, res) => {
+
   const { username, password } = req.body;
 
   try {
@@ -113,10 +122,11 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Authenticator middleware to validate access to restricted endpoints
-
+/***Authenticator middleware to validate access to restricted endpoints**/
 const authenticateUser = async (req, res, next) => {
+
   const accessToken = req.header("Authorization");
+
   try {
     const user = await User.findOne({ accessToken });
     if (user) {
@@ -136,23 +146,7 @@ const authenticateUser = async (req, res, next) => {
   }
 };
 
-//app.get("/home", authenticateUser);
-// app.get("/home", (req, res) => {
-//   let city = req.query.city
-
-//   const requesturl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.WEATHER_API_KEY}`
-//   request(requesturl, function(error, response, body) {
-//     let data = JSON.parse(body)
-//     if (response.statusCode === 200) {
-//       res.send(`The weather in ${city} is ${data.weather[0].description}`)
-//     } else {
-//       res.send(data.message)
-//     }
-//   })
-// });
-
-
-// NOTES endpoint
+/********* NOTES SCHEMA *******************/
 const PersonalNotesSchema = new mongoose.Schema({
   heading: {
     type: String,
@@ -169,7 +163,7 @@ const PersonalNotesSchema = new mongoose.Schema({
   tags: {
     type: String,
     required: true,
-    enum: ["accommodation","activities", "city","foodndrinks", "memories","sightseeing","travel"],
+    enum: ["accommodation", "activities", "city", "foodndrinks", "memories", "sightseeing", "travel"],
   },
   createAt: {
     type: Date,
@@ -182,11 +176,13 @@ const PersonalNotesSchema = new mongoose.Schema({
 });
 
 const PersonalNotes = mongoose.model("PersonalNotes", PersonalNotesSchema);
-//***GET METHOD NOTES ****/
+
+//*** NOTES ENDPOINTS ****/
 app.get("/notes", authenticateUser);
 app.get("/notes", async (req, res) => {
+
   let userId = req.user._id;
-  
+
   try {
     const notes = await PersonalNotes.find({ user: userId }).sort({
       createdAt: "desc",
@@ -201,10 +197,11 @@ app.get("/notes", async (req, res) => {
   }
 });
 
-/**** POST METHOD NOTES ****/
 app.post("/notes", authenticateUser);
 app.post("/notes", async (req, res) => {
+
   const { heading, message, tags } = req.body;
+
   try {
     const newPersonalNotes = await new PersonalNotes({
       heading,
@@ -222,18 +219,15 @@ app.post("/notes", async (req, res) => {
   }
 });
 
-/**** DELETE METHOD NOTES ******/
 app.delete("/notes/:notesId", authenticateUser);
 app.delete("/notes/:notesId", async (req, res) => {
 
-  //notesId is the note we want to delete
   const { notesId } = req.params
-  //This is for getting the users id so the user only can delete its own notes
   let userId = req.user._id;
 
   try {
-    const deleteNotes = await PersonalNotes.findOneAndDelete({user: userId, _id: notesId})
-    
+    const deleteNotes = await PersonalNotes.findOneAndDelete({ user: userId, _id: notesId })
+
     if (deleteNotes) {
       res.status(200).json({ response: deleteNotes, success: true });
     } else {
@@ -244,39 +238,7 @@ app.delete("/notes/:notesId", async (req, res) => {
   }
 });
 
-app.patch("/notes/:notesId", authenticateUser)
-app.patch("/notes/:notesId/update", async (req, res) => {
-  //notesId is the not we want to check off
-  const { notesId } = req.params;
-  
-  try {
-    const updateNote = await PersonalNotes.findByIdAndUpdate(
-      { _id: notesId },
-      req.body,
-      { new: true }
-    )
-    if(updateNote) {
-      res.status(200).json({ response: updateIsCompleted, success: true });
-    } else {
-      res.status(200).json({message: "Note not found", success: false})
-    }
-  } catch (error) {
-    res.status(400).json({ response: error, success: false });
-  }
-});
-
-app.use((req, res, next) => {
-  if (mongoose.connection.readyState === 1) {
-    next();
-  } else {
-    res.status(503).json({
-      error: "Service unavailable",
-    });
-  }
-});
-
-// PACKINGLIST endpoint
-
+/********* PACKINGLIST SCHEMA *******************/
 const PackingListSchema = new mongoose.Schema({
   heading: {
     type: String,
@@ -306,13 +268,14 @@ const PackingListSchema = new mongoose.Schema({
 
 const PackingList = mongoose.model("PackingList", PackingListSchema);
 
+/******** PACKINGLIST ENDPOINTS **********************/
 app.get("/packinglist", authenticateUser);
 app.get("/packinglist", async (req, res) => {
- 
+
   let userId = req.user._id;
- 
+
   try {
-    const list = await PackingList.find({user: userId  }).sort({ createdAt: "desc" });
+    const list = await PackingList.find({ user: userId }).sort({ createdAt: "desc" });
     res.status(200).json(list);
   } catch (err) {
     res.status(400).json({
@@ -325,8 +288,9 @@ app.get("/packinglist", async (req, res) => {
 
 app.post("/packinglist", authenticateUser);
 app.post("/packinglist", async (req, res) => {
+
   const { heading, message } = req.body;
- 
+
   try {
     const newPackingList = await new PackingList({
       heading,
@@ -336,7 +300,7 @@ app.post("/packinglist", async (req, res) => {
     res.status(200).json(newPackingList);
   } catch (err) {
     res.status(400).json({
-      
+
       message: "Could not save your packing list",
       error: err.errors,
       success: false,
@@ -344,15 +308,12 @@ app.post("/packinglist", async (req, res) => {
   }
 });
 
-//Need to check that the user the note that's being deleted is owed by the one deleting
 app.delete("/packinglist/:notesId", authenticateUser);
 app.delete("/packinglist/:notesId", async (req, res) => {
 
-  //notesId is the note we want to delete
   const { notesId } = req.params
-  //This is for getting the users id so the user only can delete its own notes
   let userId = req.user._id;
-  
+
   try {
     const deleteListItems = await PackingList.findOneAndDelete({
       user: userId, _id: notesId
@@ -371,37 +332,12 @@ app.delete("/packinglist/:notesId", async (req, res) => {
   }
 });
 
-app.patch("/packinglist/:listId", authenticateUser);
-app.patch("/packinglist/:listId/update", async (req, res) => {
-  const { listId } = req.params;
-   // isCompleted is on each note
-  let completed = req.user.isCompleted
-  let userItem = req.user._id
-  const { heading, message } = req.body;
-
-  try {
-    const updateList = await PackingList.findByIdAndUpdate(
-      { userItem: listId },
-      {
-        heading,
-        message,
-      },
-      { new: true }
-    );
-    if (updateList) {
-      res.status(200).json({ response: updateList, success: true });
-    } else {
-      res.status(400).json({ message: "Items not found", success: false });
-    }
-  } catch (error) {
-    res.status(400).json({ message: "Could not update list", success: false });
-  }
-});
-
 app.patch("/packinglist/:listId/completed", authenticateUser);
 app.patch("/packinglist/:listId/completed", async (req, res) => {
+
   const { listId } = req.params;
   const { isCompleted } = req.body;
+
   try {
     const updateIsCompleted = await PackingList.findOneAndUpdate(
       { _id: listId },
