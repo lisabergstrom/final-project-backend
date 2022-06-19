@@ -3,6 +3,8 @@ import cors from "cors";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+import request from "request";
+import stringify from "querystring";
 import "dotenv/config";
 
 
@@ -15,16 +17,6 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-
-app.use((req, res, next) => {
-  if (mongoose.connection.readyState === 1) {
-    next();
-  } else {
-    res.status(503).json({
-      error: "Service unavailable",
-    });
-  }
-});
 
 /********** USER SCHEMA *******************/
 const UserSchema = new mongoose.Schema({
