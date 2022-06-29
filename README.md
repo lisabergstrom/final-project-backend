@@ -1,11 +1,20 @@
-# Express API Starter Project
+# Final Project Backend
+For our final project we divided the frontend and backend into two different repositories. 
 
-This project includes the packages and babel setup for an express server, and is just meant to make things a little simpler to get up and running with.
+In the backend we created three different schemas
+ User schema - for the user to be able to login or register to the site
+ PersonalNotes Schema - so the user can write down travel memories and save them
+ PackingList Schema - so the user can write his/her own packinglist. 
 
-## Getting started
 
-Install dependencies with `npm install`, then start the server by running `npm run dev`
+## Tech stack
+We used the following technologies
+  Node.js
+  Express
+  MongoDB
+  Mongoose
 
 ## View it live
+You can watch the deplyed version here: 
 
-Every project should be deployed somewhere. Be sure to include the link to the deployed project so that the viewer can click around and see what it's all about.
+https://finalproject-let.herokuapp.com
